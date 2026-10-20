@@ -416,39 +416,73 @@ declare global {
 }
 
 export function isCapacitorNative(): boolean {
-  return typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
+  try {
+    return typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
+  } catch {
+    return false;
+  }
+}
+
+export function waitForDeviceReady(): Promise<void> {
+  return new Promise(resolve => {
+    if (typeof document === 'undefined') {
+      resolve();
+      return;
+    }
+    if (window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins?.BankNotificationPlugin) {
+      resolve();
+      return;
+    }
+    const handler = () => {
+      document.removeEventListener('deviceready', handler);
+      resolve();
+    };
+    document.addEventListener('deviceready', handler, { once: true });
+    // Timeout de segurança de 1s para nunca travar a execução do app
+    setTimeout(() => {
+      document.removeEventListener('deviceready', handler);
+      resolve();
+    }, 1000);
+  });
 }
 
 export async function checkAndroidNotificationPermission(): Promise<boolean> {
-  if (isCapacitorNative() && window.Capacitor?.Plugins?.BankNotificationPlugin) {
-    try {
+  try {
+    await waitForDeviceReady();
+    if (isCapacitorNative() && window.Capacitor?.Plugins?.BankNotificationPlugin) {
       const res = await window.Capacitor.Plugins.BankNotificationPlugin.checkPermission();
-      return Boolean(res.granted);
-    } catch (err) {
-      console.warn('Erro ao verificar permissão do NotificationListener:', err);
+      return Boolean(res?.granted);
+    }
+  } catch (err) {
+    console.warn('Erro ao verificar permissão do NotificationListener:', err);
+  }
+  // No navegador ou fallback seguro, simula com base em flag local
+  if (typeof window !== 'undefined') {
+    try {
+      return localStorage.getItem('@saldo_simulated_android_permission') === 'true';
+    } catch {
       return false;
     }
-  }
-  // No navegador, simula com base em flag local
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('@saldo_simulated_android_permission') === 'true';
   }
   return false;
 }
 
 export async function requestAndroidNotificationPermission(): Promise<void> {
-  if (isCapacitorNative() && window.Capacitor?.Plugins?.BankNotificationPlugin) {
-    try {
+  try {
+    await waitForDeviceReady();
+    if (isCapacitorNative() && window.Capacitor?.Plugins?.BankNotificationPlugin) {
       await window.Capacitor.Plugins.BankNotificationPlugin.requestPermission();
       return;
-    } catch (err) {
-      console.warn('Erro ao chamar tela de permissão nativa:', err);
     }
+  } catch (err) {
+    console.warn('Erro ao chamar tela de permissão nativa:', err);
   }
 
-  // No navegador de desenvolvimento, abre modal explicativo ou ativa simulação
+  // No navegador de desenvolvimento ou em caso de erro, ativa simulação local
   if (typeof window !== 'undefined') {
-    localStorage.setItem('@saldo_simulated_android_permission', 'true');
+    try {
+      localStorage.setItem('@saldo_simulated_android_permission', 'true');
+    } catch {}
   }
 }
 

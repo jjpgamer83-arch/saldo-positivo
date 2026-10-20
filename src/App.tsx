@@ -109,6 +109,8 @@ import {
   isNotificationAlreadyProcessed,
   markNotificationAsProcessed,
   parseBankNotification,
+  waitForDeviceReady,
+  isCapacitorNative,
 } from './services/notificationListener';
 import { Wallet, Loader2, ArrowLeft, CheckCircle2, BellRing } from 'lucide-react';
 
@@ -799,68 +801,103 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.Capacitor?.Plugins?.BankNotificationPlugin) {
-      return;
-    }
-
-    const plugin = window.Capacitor.Plugins.BankNotificationPlugin;
+    let isMounted = true;
 
     const processIncomingNotification = async (raw: RawBankNotification) => {
-      const settings = getBankDetectionSettings();
-      if (!settings.enabled) return;
-      if (!settings.whitelistedBanks.includes(raw.packageName)) return;
+      try {
+        const settings = getBankDetectionSettings();
+        if (!settings.enabled) return;
+        if (!settings.whitelistedBanks.includes(raw.packageName)) return;
 
-      const parsed = await parseBankNotification(raw);
-      if (!parsed) return;
-      if (isNotificationAlreadyProcessed(parsed.hash)) return;
+        const parsed = await parseBankNotification(raw);
+        if (!parsed) return;
+        if (isNotificationAlreadyProcessed(parsed.hash)) return;
 
-      if (settings.autoApproveHighConfidence && parsed.confidence === 'high' && !parsed.isAmbiguous) {
-        handleAddTransaction({
-          description: parsed.description,
-          amount: parsed.amount,
-          type: parsed.type,
-          categoryId: parsed.suggestedCategoryId || categories[0]?.id || 'outros',
-          date: parsed.date,
-          paymentMethod: parsed.paymentMethod,
-          observation: `Detectado via notificação bancária (${parsed.bankName})`,
-          metadata: {
-            rawNotificationId: parsed.rawNotificationId,
-            packageName: parsed.packageName,
-            bankName: parsed.bankName,
-            detectedHash: parsed.hash,
-            isAutoDetected: true,
-            confidence: parsed.confidence,
-            originalText: parsed.rawText,
-          },
-        });
-        markNotificationAsProcessed(parsed.hash);
-        showToast(
-          'Despesa bancária detectada!',
-          `"${parsed.description}" (R$ ${parsed.amount.toFixed(2)}) lançada automaticamente via ${parsed.bankName}.`,
-          'success'
-        );
-      } else {
-        setPendingBankTransactions(prev => {
-          if (prev.some(p => p.hash === parsed.hash)) return prev;
-          const next = [parsed, ...prev];
-          savePendingBankTransactions(next);
-          return next;
-        });
-        showToast(
-          'Nova despesa detectada',
-          `"${parsed.description}" do ${parsed.bankName} aguarda sua confirmação.`,
-          'info'
-        );
+        if (settings.autoApproveHighConfidence && parsed.confidence === 'high' && !parsed.isAmbiguous) {
+          handleAddTransaction({
+            description: parsed.description,
+            amount: parsed.amount,
+            type: parsed.type,
+            categoryId: parsed.suggestedCategoryId || categories[0]?.id || 'outros',
+            date: parsed.date,
+            paymentMethod: parsed.paymentMethod,
+            observation: `Detectado via notificação bancária (${parsed.bankName})`,
+            metadata: {
+              rawNotificationId: parsed.rawNotificationId,
+              packageName: parsed.packageName,
+              bankName: parsed.bankName,
+              detectedHash: parsed.hash,
+              isAutoDetected: true,
+              confidence: parsed.confidence,
+              originalText: parsed.rawText,
+            },
+          });
+          markNotificationAsProcessed(parsed.hash);
+          showToast(
+            'Despesa bancária detectada!',
+            `"${parsed.description}" (R$ ${parsed.amount.toFixed(2)}) lançada automaticamente via ${parsed.bankName}.`,
+            'success'
+          );
+        } else {
+          setPendingBankTransactions(prev => {
+            if (prev.some(p => p.hash === parsed.hash)) return prev;
+            const next = [parsed, ...prev];
+            savePendingBankTransactions(next);
+            return next;
+          });
+          showToast(
+            'Nova despesa detectada',
+            `"${parsed.description}" do ${parsed.bankName} aguarda sua confirmação.`,
+            'info'
+          );
+        }
+      } catch (procErr) {
+        console.warn('Erro seguro ao processar notificação bancária:', procErr);
       }
     };
 
-    plugin.getPendingNotifications?.()
-      .then(res => {
-        if (res && res.notifications) {
-          res.notifications.forEach(processIncomingNotification);
+    const initBankNotifications = async () => {
+      try {
+        // Aguarda evento nativo 'deviceready' ou timeout sem jamais travar a interface
+        await waitForDeviceReady();
+
+        if (!isMounted) return;
+
+        if (typeof window === 'undefined' || !isCapacitorNative() || !window.Capacitor?.Plugins?.BankNotificationPlugin) {
+          return;
         }
-      })
-      .catch(err => console.warn('Erro ao ler notificações pendentes:', err));
+
+        const plugin = window.Capacitor.Plugins.BankNotificationPlugin;
+        if (typeof plugin.getPendingNotifications !== 'function') {
+          return;
+        }
+
+        const res = await plugin.getPendingNotifications().catch(err => {
+          console.warn('Falha segura ao buscar notificações pendentes:', err);
+          return null;
+        });
+
+        if (!isMounted || !res || !res.notifications || !Array.isArray(res.notifications)) {
+          return;
+        }
+
+        for (const raw of res.notifications) {
+          await processIncomingNotification(raw);
+        }
+      } catch (err) {
+        console.warn('Falha silenciosa no listener de notificações nativas:', err);
+      }
+    };
+
+    // Executa de forma assíncrona após 300ms para priorizar totalmente a renderização visual do app
+    const timer = setTimeout(() => {
+      initBankNotifications().catch(() => {});
+    }, 300);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [categories, showToast]);
 
   const handleConfirmPendingBankTx = (

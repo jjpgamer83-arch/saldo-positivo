@@ -42,9 +42,10 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
-      # 5. Sincronizar com o Capacitor (copia dist/ e configurações para android/)
+      # 5. Sincronizar com o Capacitor (reconstrói dist e copia para android/app/src/main/assets/public)
       - name: Sync Capacitor Android
         run: |
+          npm run build
           npx cap sync android
 
       # 6. Conceder permissão de execução ao Gradle Wrapper
