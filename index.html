@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>meubolso</title>
+    <meta name="description" content="Aplicativo mobile de gerenciamento financeiro pessoal moderno e inteligente." />
+    <meta property="og:title" content="Saldo" />
+    <meta property="og:description" content="Aplicativo mobile de gerenciamento financeiro pessoal moderno e inteligente." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#10b981" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS Safari PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Saldo" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="shortcut icon" href="/favicon.png" />
+    <script>
+      (function() {
+        // 1. Fix: Cannot set property fetch of #<Window> which has only a getter
+        try {
+          var _origFetch = window.fetch;
+          var _currentFetch = _origFetch ? _origFetch.bind(window) : undefined;
+          Object.defineProperty(window, 'fetch', {
+            get: function() { return _currentFetch; },
+            set: function(val) { _currentFetch = val; },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (_) {
+          try {
+            var proto = Object.getPrototypeOf(window);
+            if (proto) {
+              var _protoFetch = window.fetch ? window.fetch.bind(window) : undefined;
+              Object.defineProperty(proto, 'fetch', {
+                get: function() { return _protoFetch; },
+                set: function(val) { _protoFetch = val; },
+                configurable: true,
+                enumerable: true
+              });
+            }
+          } catch (__) {}
+        }
+
+        // 2. Intercept DataConnect 404 un-deployed connector console.error
+        try {
+          var _origConsoleError = console.error;
+          console.error = function() {
+            try {
+              var args = Array.prototype.slice.call(arguments);
+              var str = '';
+              for (var i = 0; i < args.length; i++) {
+                var it = args[i];
+                if (typeof it === 'string') {
+                  str += ' ' + it;
+                } else if (it && typeof it === 'object') {
+                  try {
+                    str += ' ' + (it.message || JSON.stringify(it));
+                  } catch (_) {
+                    str += ' ' + String(it);
+                  }
+                } else {
+                  str += ' ' + String(it);
+                }
+              }
+              if (str.indexOf('connectors/default') !== -1 && (str.indexOf('404') !== -1 || str.indexOf('NOT_FOUND') !== -1)) {
+                console.warn.apply(console, ['[DataConnect Info]:'].concat(args));
+                return;
+              }
+            } catch (_) {}
+            _origConsoleError.apply(console, arguments);
+          };
+        } catch (_) {}
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#090a0f] text-slate-100 antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

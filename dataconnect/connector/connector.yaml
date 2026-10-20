@@ -1,0 +1,7 @@
+connectorId: "default"
+authMode: "USER"
+generate:
+  javascriptSdk:
+    outputDir: "../../src/dataconnect"
+    package: "@firebasegen/default-connector"
+    packageJsonDir: "../../"

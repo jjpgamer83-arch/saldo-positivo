@@ -1,0 +1,11 @@
+specVersion: "v1alpha"
+serviceId: "saldo-e77f8-service"
+location: "southamerica-east1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "saldo-e77f8-database"
+      cloudSql:
+        instanceId: "saldo-e77f8-instance"
+connectorDirs: ["./connector"]

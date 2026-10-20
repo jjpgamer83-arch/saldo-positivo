@@ -1,0 +1,65 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Permite disparar a compilação manualmente com 1 clique na aba Actions
+
+jobs:
+  build-apk:
+    name: Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout do repositório
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      # 3. Instalar dependências e compilar a aplicação Web (Vite)
+      - name: Install dependencies & Build Web
+        run: |
+          npm install
+          npm run build
+
+      # 4. Configurar Java JDK 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # 5. Sincronizar com o Capacitor (copia dist/ e configurações para android/)
+      - name: Sync Capacitor Android
+        run: |
+          npx cap sync android
+
+      # 6. Conceder permissão de execução ao Gradle Wrapper
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      # 7. Compilar o APK de depuração (debug APK)
+      - name: Build Debug APK with Gradle
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      # 8. Upload do APK como Artifact no GitHub Actions
+      - name: Upload Debug APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SaldoPositivo-Debug-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c0e17" />
+      <stop offset="100%" stop-color="#050609" />
+    </linearGradient>
+    <linearGradient id="emeraldGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="50%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="accentGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+  </defs>
+
+  <!-- Full bleed background for maskable icon -->
+  <rect width="512" height="512" fill="url(#bgGradMask)" />
+
+  <!-- Centered emblem in safe zone (within 410px inner box) -->
+  <g transform="translate(160, 140) scale(0.8)">
+    <path d="M120 10 L120 270" stroke="url(#accentGradMask)" stroke-width="20" stroke-linecap="round" stroke-opacity="0.3" />
+    <path d="M 190,60 
+             C 170,25 130,15 90,20 
+             C 45,26 15,65 18,105 
+             C 22,145 65,160 120,175 
+             C 185,192 230,210 225,255 
+             C 220,300 175,335 120,335 
+             C 65,335 25,305 10,270" 
+          fill="none" 
+          stroke="url(#emeraldGradMask)" 
+          stroke-width="36" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <path d="M 215,35 L 225,55 L 245,65 L 225,75 L 215,95 L 205,75 L 185,65 L 205,55 Z" 
+          fill="url(#accentGradMask)" />
+  </g>
+</svg>

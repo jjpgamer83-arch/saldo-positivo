@@ -1,0 +1,6 @@
+{
+  "name": "Saldo",
+  "description": "Aplicativo mobile de gerenciamento financeiro pessoal moderno e inteligente.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

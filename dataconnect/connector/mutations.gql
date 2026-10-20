@@ -1,0 +1,86 @@
+# Create a transaction
+mutation CreateTransaction(
+  $description: String!
+  $amount: Float!
+  $type: String!
+  $categoryId: UUID!
+  $date: Date!
+  $status: String
+  $account: String
+  $paymentMethod: String
+  $observation: String
+) @auth(level: USER) {
+  transaction_insert(data: {
+    userId_expr: "auth.uid"
+    description: $description
+    amount: $amount
+    type: $type
+    categoryId: $categoryId
+    date: $date
+    status: $status
+    account: $account
+    paymentMethod: $paymentMethod
+    observation: $observation
+  })
+}
+
+# Update a transaction
+mutation UpdateTransaction(
+  $id: UUID!
+  $description: String
+  $amount: Float
+  $type: String
+  $categoryId: UUID
+  $date: Date
+  $status: String
+  $account: String
+  $paymentMethod: String
+  $observation: String
+) @auth(level: USER) {
+  transaction_updateMany(
+    where: {
+      id: { eq: $id }
+      userId: { eq_expr: "auth.uid" }
+    }
+    data: {
+      description: $description
+      amount: $amount
+      type: $type
+      categoryId: $categoryId
+      date: $date
+      status: $status
+      account: $account
+      paymentMethod: $paymentMethod
+      observation: $observation
+    }
+  )
+}
+
+# Delete a transaction
+mutation DeleteTransaction($id: UUID!) @auth(level: USER) {
+  transaction_deleteMany(
+    where: {
+      id: { eq: $id }
+      userId: { eq_expr: "auth.uid" }
+    }
+  )
+}
+
+# Create a category
+mutation CreateCategory(
+  $name: String!
+  $icon: String!
+  $color: String!
+  $bgLight: String!
+  $type: String!
+) @auth(level: USER) {
+  category_insert(data: {
+    userId_expr: "auth.uid"
+    name: $name
+    icon: $icon
+    color: $color
+    bgLight: $bgLight
+    type: $type
+  })
+}
+

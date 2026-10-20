@@ -1,0 +1,111 @@
+# User settings and global configurations
+type UserSetting @table  {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  globalMonthlyLimit: Float
+}
+
+# Categories for transactions, budgets, etc.
+type Category @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  name: String!
+  icon: String!
+  color: String!
+  bgLight: String!
+  type: String! # 'income' | 'expense' | 'both'
+}
+
+# Daily financial transactions
+type Transaction @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  description: String!
+  amount: Float!
+  type: String! # 'income' | 'expense'
+  category: Category!
+  date: Date!
+  status: String # 'completed' | 'pending'
+  account: String
+  paymentMethod: String
+  card: CreditCard
+  invoice: Invoice
+  observation: String
+}
+
+# Upcoming bills and scheduled payments
+type UpcomingBill @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  name: String!
+  amount: Float!
+  dueDate: Date!
+  dueDay: Int!
+  category: Category!
+  status: String! # 'pending' | 'paid'
+}
+
+# Budget limits per category
+type CategoryBudget @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  category: Category!
+  limitAmount: Float!
+  observation: String
+}
+
+# Financial goals and savings
+type FinancialGoal @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  name: String!
+  currentAmount: Float!
+  targetAmount: Float!
+  deadline: Date!
+  description: String
+  color: String
+  icon: String
+}
+
+# Credit cards information
+type CreditCard @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  name: String!
+  bank: String!
+  lastFourDigits: String!
+  brand: String!
+  limitAmount: Float!
+  closingDay: Int!
+  dueDay: Int!
+  colorTheme: String!
+}
+
+# Monthly invoices for credit cards
+type Invoice @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  card: CreditCard!
+  month: String! # 'YYYY-MM'
+  closingDate: Date!
+  dueDate: Date!
+  status: String! # 'open' | 'closed' | 'paid'
+  paidAt: Timestamp
+}
+
+# Individual purchases inside a credit card invoice, handling installments
+type CreditCardPurchase @table {
+  id: UUID! @default(expr: "uuidV4()")
+  userId: String! @default(expr: "auth.uid")
+  card: CreditCard!
+  invoice: Invoice!
+  category: Category!
+  description: String!
+  amount: Float! # Value of the current installment/purchase
+  totalAmount: Float! # Total value of the purchase
+  date: Date!
+  isInstallment: Boolean!
+  currentInstallment: Int
+  totalInstallments: Int
+  nextInstallmentDate: Date
+}

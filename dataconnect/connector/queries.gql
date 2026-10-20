@@ -1,0 +1,41 @@
+# List user transactions
+query ListTransactions @auth(level: USER) {
+  transactions(
+    where: { userId: { eq_expr: "auth.uid" } }
+    orderBy: [{ date: DESC }]
+  ) {
+    id
+    description
+    amount
+    type
+    date
+    status
+    account
+    paymentMethod
+    observation
+    category {
+      id
+      name
+      icon
+      color
+      bgLight
+      type
+    }
+  }
+}
+
+# List categories
+query ListCategories @auth(level: USER) {
+  categories(
+    where: { userId: { eq_expr: "auth.uid" } }
+    orderBy: [{ name: ASC }]
+  ) {
+    id
+    name
+    icon
+    color
+    bgLight
+    type
+  }
+}
+
