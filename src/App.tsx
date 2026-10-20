@@ -112,6 +112,10 @@ import {
   waitForDeviceReady,
   isCapacitorNative,
 } from './services/notificationListener';
+import {
+  initializeAdMob,
+  recordTransactionActionAndMaybeShowInterstitial,
+} from './services/admobService';
 import { Wallet, Loader2, ArrowLeft, CheckCircle2, BellRing } from 'lucide-react';
 
 export default function App() {
@@ -783,11 +787,31 @@ export default function App() {
         newTx.description,
         'success'
       );
+
+      // Dispara contador do AdMob e exibe Intersticial a cada 3 transações salvas ou importadas
+      recordTransactionActionAndMaybeShowInterstitial().catch(adErr => {
+        console.warn('[AdMob]: Falha silenciosa no intersticial:', adErr);
+      });
     } catch (error) {
       console.error('Error adding transaction:', error);
       showToast('Erro ao salvar movimentação', 'Tente novamente.', 'error');
     }
   };
+
+  // ==========================================
+  // GOOGLE ADMOB (BANNER INFERIOR E INTERSTITIAL)
+  // ==========================================
+
+  useEffect(() => {
+    // Inicializa AdMob de forma assíncrona após montagem da tela
+    const timer = setTimeout(() => {
+      initializeAdMob().catch(err => {
+        console.warn('[AdMob]: Falha na inicialização assíncrona:', err);
+      });
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // ==========================================
   // DETECÇÃO AUTOMÁTICA DE DESPESAS BANCÁRIAS (ANDROID / CAPACITOR)
