@@ -1,4 +1,4 @@
-package com.saldopositivo.finance;
+package com.meubolso.app;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;

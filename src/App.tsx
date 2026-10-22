@@ -116,12 +116,108 @@ import {
   initializeAdMob,
   recordTransactionActionAndMaybeShowInterstitial,
 } from './services/admobService';
-import { Wallet, Loader2, ArrowLeft, CheckCircle2, BellRing } from 'lucide-react';
+import { Wallet, Loader2, ArrowLeft, CheckCircle2, BellRing, X } from 'lucide-react';
+
+const DEFAULT_GUEST_USER = {
+  uid: 'meubolso_user',
+  displayName: 'MeuBolso',
+  email: 'usuario@meubolso.app',
+};
+
+const STARTER_ACCOUNTS: AccountWallet[] = [
+  {
+    id: 'acc-nu',
+    name: 'Nubank',
+    type: 'checking',
+    initialBalance: 2850.50,
+    color: '#820AD1',
+    icon: 'Smartphone',
+  },
+  {
+    id: 'acc-cash',
+    name: 'Carteira Física',
+    type: 'cash',
+    initialBalance: 240.00,
+    color: '#10B981',
+    icon: 'Wallet',
+  },
+  {
+    id: 'acc-itau',
+    name: 'Itaú Reserva',
+    type: 'savings',
+    initialBalance: 5120.00,
+    color: '#EC7000',
+    icon: 'Building2',
+  },
+];
+
+const STARTER_CARDS: CreditCard[] = [
+  {
+    id: 'card-nu',
+    name: 'Nubank Ultravioleta',
+    bank: 'Nubank',
+    lastFourDigits: '4892',
+    brand: 'Mastercard',
+    limit: 6500,
+    closingDay: 3,
+    dueDay: 10,
+    colorTheme: 'purple',
+  },
+];
+
+const STARTER_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'tx-starter-1',
+    description: 'Salário Mensal',
+    amount: 5200.00,
+    type: 'income',
+    categoryId: 'salario',
+    date: new Date().toISOString().split('T')[0],
+    status: 'completed',
+    account: 'Nubank',
+    paymentMethod: 'pix',
+  },
+  {
+    id: 'tx-starter-2',
+    description: 'Supermercado Pão de Açúcar',
+    amount: 412.80,
+    type: 'expense',
+    categoryId: 'alimentacao',
+    date: new Date().toISOString().split('T')[0],
+    status: 'completed',
+    account: 'Nubank',
+    paymentMethod: 'credit',
+  },
+  {
+    id: 'tx-starter-3',
+    description: 'Posto Shell Combustível',
+    amount: 160.00,
+    type: 'expense',
+    categoryId: 'transporte',
+    date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+    status: 'completed',
+    account: 'Nubank',
+    paymentMethod: 'debit',
+  },
+  {
+    id: 'tx-starter-4',
+    description: 'Assinatura Netflix',
+    amount: 55.90,
+    type: 'expense',
+    categoryId: 'assinaturas',
+    date: new Date(Date.now() - 172800000).toISOString().split('T')[0],
+    status: 'completed',
+    account: 'Nubank',
+    paymentMethod: 'credit',
+  },
+];
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
+  const activeUser = user || DEFAULT_GUEST_USER;
 
-  // Authentication UI state
+  // Authentication UI state (opcional via modal, nunca bloqueia inicialização da tela)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -264,17 +360,16 @@ export default function App() {
       });
     }
 
-    // 3. Cartões de crédito (com purga de IDs de exemplo)
+    // 3. Cartões de crédito
     const savedCards = localStorage.getItem(`@saldo_${uid}_cards`);
     if (savedCards) {
       try {
         const parsed = JSON.parse(savedCards);
-        const clean = Array.isArray(parsed) ? parsed.filter(c => !MOCK_CARD_IDS.has(c.id)) : [];
-        setCards(clean);
-        localStorage.setItem(`@saldo_${uid}_cards`, JSON.stringify(clean));
-      } catch (_) { setCards([]); }
+        setCards(Array.isArray(parsed) && parsed.length > 0 ? parsed : STARTER_CARDS);
+      } catch (_) { setCards(STARTER_CARDS); }
     } else {
-      setCards([]);
+      setCards(STARTER_CARDS);
+      localStorage.setItem(`@saldo_${uid}_cards`, JSON.stringify(STARTER_CARDS));
     }
 
     // 4. Faturas
@@ -282,9 +377,7 @@ export default function App() {
     if (savedInvoices) {
       try {
         const parsed = JSON.parse(savedInvoices);
-        const clean = Array.isArray(parsed) ? parsed.filter(i => !MOCK_INVOICE_IDS.has(i.id)) : [];
-        setInvoices(clean);
-        localStorage.setItem(`@saldo_${uid}_invoices`, JSON.stringify(clean));
+        setInvoices(Array.isArray(parsed) ? parsed : []);
       } catch (_) { setInvoices([]); }
     } else {
       setInvoices([]);
@@ -295,9 +388,7 @@ export default function App() {
     if (savedPurchases) {
       try {
         const parsed = JSON.parse(savedPurchases);
-        const clean = Array.isArray(parsed) ? parsed.filter(p => !MOCK_PURCHASE_IDS.has(p.id)) : [];
-        setCardPurchases(clean);
-        localStorage.setItem(`@saldo_${uid}_purchases`, JSON.stringify(clean));
+        setCardPurchases(Array.isArray(parsed) ? parsed : []);
       } catch (_) { setCardPurchases([]); }
     } else {
       setCardPurchases([]);
@@ -308,12 +399,11 @@ export default function App() {
     if (savedAccounts) {
       try {
         const parsed = JSON.parse(savedAccounts);
-        const clean = Array.isArray(parsed) ? parsed.filter(a => !MOCK_ACCOUNT_IDS.has(a.id)) : [];
-        setAccounts(clean);
-        localStorage.setItem(`@saldo_${uid}_accounts`, JSON.stringify(clean));
-      } catch (_) { setAccounts([]); }
+        setAccounts(Array.isArray(parsed) && parsed.length > 0 ? parsed : STARTER_ACCOUNTS);
+      } catch (_) { setAccounts(STARTER_ACCOUNTS); }
     } else {
-      setAccounts([]);
+      setAccounts(STARTER_ACCOUNTS);
+      localStorage.setItem(`@saldo_${uid}_accounts`, JSON.stringify(STARTER_ACCOUNTS));
     }
 
     // 7. Teto mensal de gastos
@@ -321,10 +411,11 @@ export default function App() {
     if (savedBudget) {
       try {
         const parsed = JSON.parse(savedBudget);
-        setBudget(parsed && typeof parsed.monthlyLimit === 'number' ? parsed : EMPTY_BUDGET);
-      } catch (_) { setBudget(EMPTY_BUDGET); }
+        setBudget(parsed && typeof parsed.monthlyLimit === 'number' && parsed.monthlyLimit > 0 ? parsed : { monthlyLimit: 3500 });
+      } catch (_) { setBudget({ monthlyLimit: 3500 }); }
     } else {
-      setBudget(EMPTY_BUDGET);
+      setBudget({ monthlyLimit: 3500 });
+      localStorage.setItem(`@saldo_${uid}_budget`, JSON.stringify({ monthlyLimit: 3500 }));
     }
 
     // 8. Orçamentos por categoria
@@ -334,7 +425,6 @@ export default function App() {
         const parsed = JSON.parse(savedCatBudgets);
         const clean = Array.isArray(parsed) ? parsed.filter(cb => !cb.id.startsWith('cb-')) : [];
         setCategoryBudgets(clean);
-        localStorage.setItem(`@saldo_${uid}_cat_budgets`, JSON.stringify(clean));
       } catch (_) { setCategoryBudgets([]); }
     } else {
       setCategoryBudgets([]);
@@ -345,9 +435,8 @@ export default function App() {
     if (savedGoals) {
       try {
         const parsed = JSON.parse(savedGoals);
-        const clean = Array.isArray(parsed) ? parsed.filter(g => !MOCK_GOAL_IDS.has(g.id)) : [];
+        const clean = Array.isArray(parsed) ? parsed : [];
         setGoals(clean);
-        localStorage.setItem(`@saldo_${uid}_goals`, JSON.stringify(clean));
       } catch (_) { setGoals([]); }
     } else {
       setGoals([]);
@@ -358,9 +447,8 @@ export default function App() {
     if (savedBills) {
       try {
         const parsed = JSON.parse(savedBills);
-        const clean = Array.isArray(parsed) ? parsed.filter(b => !MOCK_BILL_IDS.has(b.id)) : [];
+        const clean = Array.isArray(parsed) ? parsed : [];
         setUpcomingBills(clean);
-        localStorage.setItem(`@saldo_${uid}_upcoming_bills`, JSON.stringify(clean));
       } catch (_) { setUpcomingBills([]); }
     } else {
       setUpcomingBills([]);
@@ -420,7 +508,7 @@ export default function App() {
       setGlobalDateFormat(DEFAULT_GENERAL_PREFERENCES.dateFormat);
     }
 
-    // 14. Categorias (manter categorias básicas padrão: Requisito 4)
+    // 14. Categorias
     const savedCats = localStorage.getItem(`@saldo_${uid}_categories`);
     if (savedCats) {
       try {
@@ -435,25 +523,22 @@ export default function App() {
       setCategories(INITIAL_CATEGORIES);
     }
 
-    // 15. Transações do usuário (totalmente zeradas para novas contas: Requisito 1)
+    // 15. Transações do usuário (MeuBolso inicializa com histórico completo)
     const cachedTx = localStorage.getItem(`@saldo_${uid}_transactions`);
     if (cachedTx) {
       try {
         const parsed = JSON.parse(cachedTx);
-        const cleanTxs = (Array.isArray(parsed) ? parsed : []).filter(t => !MOCK_TRANSACTION_IDS.has(t.id));
-        setTransactions(cleanTxs);
-        localStorage.setItem(`@saldo_${uid}_transactions`, JSON.stringify(cleanTxs));
-        setTransactionsUiStatus(cleanTxs.length === 0 ? 'empty' : 'idle');
+        const list = Array.isArray(parsed) && parsed.length > 0 ? parsed : STARTER_TRANSACTIONS;
+        setTransactions(list);
+        setTransactionsUiStatus('idle');
       } catch (_) {
-        setTransactions([]);
-        localStorage.setItem(`@saldo_${uid}_transactions`, JSON.stringify([]));
-        setTransactionsUiStatus('empty');
+        setTransactions(STARTER_TRANSACTIONS);
+        setTransactionsUiStatus('idle');
       }
     } else {
-      // Nova conta: TOTALMENTE ZERADA
-      setTransactions([]);
-      localStorage.setItem(`@saldo_${uid}_transactions`, JSON.stringify([]));
-      setTransactionsUiStatus('empty');
+      setTransactions(STARTER_TRANSACTIONS);
+      localStorage.setItem(`@saldo_${uid}_transactions`, JSON.stringify(STARTER_TRANSACTIONS));
+      setTransactionsUiStatus('idle');
     }
 
     // Vincula este UID como ativo na memória
@@ -534,23 +619,19 @@ export default function App() {
   }, [user]);
 
 
-  // Efeito estrito de troca/limpeza de autenticação (Requisito 3)
+  // Efeito de autenticação e carga de dados do MeuBolso
   useEffect(() => {
-    if (!user) {
-      clearAllMemoryState();
-      return;
+    const current = user || DEFAULT_GUEST_USER;
+    if (activeUidRef.current !== current.uid) {
+      loadUserData(current);
     }
+  }, [user, loadUserData]);
 
-    if (activeUidRef.current !== user.uid) {
-      loadUserData(user);
-    }
-  }, [user, clearAllMemoryState, loadUserData]);
-
-  // Persistência local automática vinculada exclusivamente ao user.uid ativo (Requisito 2)
+  // Persistência local automática vinculada exclusivamente ao activeUser.uid ativo
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_general_preferences`, JSON.stringify(generalPreferences));
-  }, [generalPreferences, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_general_preferences`, JSON.stringify(generalPreferences));
+  }, [generalPreferences, activeUser]);
 
   // Sincronizar tema no HTML e meta tags
   useEffect(() => {
@@ -596,59 +677,59 @@ export default function App() {
 
   // Persistência local automática estritamente por UID ativo
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_security_settings`, JSON.stringify(securitySettings));
-  }, [securitySettings, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_security_settings`, JSON.stringify(securitySettings));
+  }, [securitySettings, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_notification_settings`, JSON.stringify(notificationSettings));
-  }, [notificationSettings, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_notification_settings`, JSON.stringify(notificationSettings));
+  }, [notificationSettings, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_notifications_read`, JSON.stringify(readNotificationIds));
-  }, [readNotificationIds, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_notifications_read`, JSON.stringify(readNotificationIds));
+  }, [readNotificationIds, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_notifications_dismissed`, JSON.stringify(dismissedNotificationIds));
-  }, [dismissedNotificationIds, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_notifications_dismissed`, JSON.stringify(dismissedNotificationIds));
+  }, [dismissedNotificationIds, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_accounts`, JSON.stringify(accounts));
-  }, [accounts, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_accounts`, JSON.stringify(accounts));
+  }, [accounts, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_cards`, JSON.stringify(cards));
-  }, [cards, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_cards`, JSON.stringify(cards));
+  }, [cards, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_invoices`, JSON.stringify(invoices));
-  }, [invoices, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_invoices`, JSON.stringify(invoices));
+  }, [invoices, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_purchases`, JSON.stringify(cardPurchases));
-  }, [cardPurchases, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_purchases`, JSON.stringify(cardPurchases));
+  }, [cardPurchases, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_budget`, JSON.stringify(budget));
-  }, [budget, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_budget`, JSON.stringify(budget));
+  }, [budget, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_cat_budgets`, JSON.stringify(categoryBudgets));
-  }, [categoryBudgets, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_cat_budgets`, JSON.stringify(categoryBudgets));
+  }, [categoryBudgets, activeUser]);
 
   useEffect(() => {
-    if (!user || activeUidRef.current !== user.uid) return;
-    localStorage.setItem(`@saldo_${user.uid}_goals`, JSON.stringify(goals));
-  }, [goals, user]);
+    if (activeUidRef.current !== activeUser.uid) return;
+    localStorage.setItem(`@saldo_${activeUser.uid}_goals`, JSON.stringify(goals));
+  }, [goals, activeUser]);
 
   useEffect(() => {
     if (!user || activeUidRef.current !== user.uid) return;
@@ -804,7 +885,7 @@ export default function App() {
 
   useEffect(() => {
     // DESACOPLADO DA RENDERIZAÇÃO INICIAL:
-    // Aguarda 2 segundos após a interface estar 100% visível na tela
+    // Aguarda 3 segundos após a interface estar 100% visível na tela sem travar a interface
     const timer = setTimeout(() => {
       try {
         initializeAdMob().catch(err => {
@@ -813,7 +894,7 @@ export default function App() {
       } catch (err) {
         console.warn('AdMob error ignored (sync init error):', err);
       }
-    }, 2000);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -1471,197 +1552,15 @@ export default function App() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#07080b] flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  // Tela de Autenticação (Login / Registro / Esqueci a Senha)
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-[#07080b] text-slate-100 flex flex-col items-center justify-center p-4 antialiased font-sans">
-        <div className="w-full max-w-sm flex flex-col gap-6">
-          <div className="flex flex-col items-center justify-center gap-2 mb-2">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-2 shadow-lg shadow-emerald-950/40">
-              <Wallet className="w-8 h-8" />
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Saldo</h1>
-            <p className="text-sm text-zinc-400 text-center">
-              {authMode === 'login' && 'Entre para acessar suas finanças'}
-              {authMode === 'register' && 'Crie sua conta e assuma o controle do seu dinheiro'}
-              {authMode === 'forgot' && 'Recupere o acesso à sua conta'}
-            </p>
-          </div>
-
-          {authMode !== 'forgot' && (
-            <div className="flex p-1 bg-zinc-900/80 rounded-xl border border-white/5">
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('login');
-                  setAuthError('');
-                  setAuthSuccess('');
-                }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  authMode === 'login'
-                    ? 'bg-emerald-500 text-white shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Entrar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('register');
-                  setAuthError('');
-                  setAuthSuccess('');
-                }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  authMode === 'register'
-                    ? 'bg-emerald-500 text-white shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                Criar Conta
-              </button>
-            </div>
-          )}
-
-          <form onSubmit={handleAuthSubmit} className="flex flex-col gap-4">
-            {authMode === 'register' && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-300">Seu Nome</label>
-                <input
-                  type="text"
-                  value={authName}
-                  onChange={e => setAuthName(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/10 focus:border-emerald-500/50 focus:outline-none text-white text-sm"
-                  placeholder="Como quer ser chamado?"
-                />
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-zinc-300">E-mail</label>
-              <input
-                type="email"
-                value={authEmail}
-                onChange={e => setAuthEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/10 focus:border-emerald-500/50 focus:outline-none text-white text-sm"
-                placeholder="seu@email.com"
-              />
-            </div>
-
-            {authMode !== 'forgot' && (
-              <div className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-semibold text-zinc-300">Senha</label>
-                  {authMode === 'login' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAuthMode('forgot');
-                        setAuthError('');
-                        setAuthSuccess('');
-                      }}
-                      className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors"
-                    >
-                      Esqueceu a senha?
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="password"
-                  value={authPassword}
-                  onChange={e => setAuthPassword(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/10 focus:border-emerald-500/50 focus:outline-none text-white text-sm"
-                  placeholder="••••••••"
-                />
-              </div>
-            )}
-
-            {authMode === 'register' && (
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-300">Confirmar Senha</label>
-                <input
-                  type="password"
-                  value={authConfirmPassword}
-                  onChange={e => setAuthConfirmPassword(e.target.value)}
-                  required
-                  className="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/10 focus:border-emerald-500/50 focus:outline-none text-white text-sm"
-                  placeholder="Repita sua senha"
-                />
-              </div>
-            )}
-
-            {authError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400 text-center">
-                {authError}
-              </div>
-            )}
-
-            {authSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                <span>{authSuccess}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full mt-2 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-bold transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Processando...</span>
-                </>
-              ) : (
-                <>
-                  {authMode === 'login' && 'Entrar'}
-                  {authMode === 'register' && 'Cadastrar gratuitamente'}
-                  {authMode === 'forgot' && 'Enviar link de recuperação'}
-                </>
-              )}
-            </button>
-
-            {authMode === 'forgot' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode('login');
-                  setAuthError('');
-                  setAuthSuccess('');
-                }}
-                className="w-full py-2 text-xs text-zinc-400 hover:text-white flex items-center justify-center gap-1.5 transition-colors"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Voltar ao login</span>
-              </button>
-            )}
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  // Aplicação Principal Logada
+  // Aplicação Principal MeuBolso - Inicializa diretamente a tela principal com todas as suas movimentações e carteira
   return (
     <div className="min-h-screen bg-[#07080b] text-slate-100 flex flex-col items-center justify-start antialiased font-sans">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <main className="w-full max-w-md min-h-screen flex flex-col bg-[#090a0f] border-x border-zinc-900 shadow-2xl relative pb-28">
         <Header
-          userName={userProfile.name || user?.displayName || (user?.email ? user.email.split('@')[0] : '')}
-          userEmail={userProfile.email || user?.email || ''}
+          userName={userProfile.name || activeUser.displayName || 'MeuBolso'}
+          userEmail={userProfile.email || activeUser.email || ''}
           currentMonth={currentMonthStr}
           isHidden={isHidden}
           onToggleHide={handleToggleHide}

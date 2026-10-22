@@ -1,4 +1,4 @@
-package com.saldopositivo.finance;
+package com.meubolso.app;
 
 import android.app.Notification;
 import android.os.Bundle;
@@ -51,7 +51,7 @@ public class BankNotificationService extends NotificationListenerService {
 
     @Override
     public void onListenerDisconnected() {
-        super.onListenerDisconnected() ;
+        super.onListenerDisconnected();
         listenerInstance = null;
         Log.i(TAG, "BankNotificationService desconectado.");
     }

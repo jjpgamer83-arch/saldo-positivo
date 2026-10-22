@@ -1,4 +1,4 @@
-package com.saldopositivo.finance;
+package com.meubolso.app;
 
 import android.content.Context;
 import android.content.Intent;
