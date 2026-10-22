@@ -1,10 +1,11 @@
+import { Capacitor } from '@capacitor/core';
 import {
   AdMob,
   BannerAdPosition,
   BannerAdSize,
   InterstitialAdPluginEvents,
 } from '@capacitor-community/admob';
-import { isCapacitorNative, waitForDeviceReady } from './notificationListener';
+import { waitForDeviceReady } from './notificationListener';
 
 // ==========================================
 // GOOGLE ADMOB CONFIGURAÇÕES E IDENTIFICADORES
@@ -27,58 +28,93 @@ let isInterstitialReady = false;
 let transactionCounter = 0;
 
 /**
+ * Verifica com segurança total se o ambiente é nativo e se o AdMob está disponível
+ */
+export function isAdMobSupported(): boolean {
+  try {
+    if (typeof window === 'undefined') return false;
+    if (!Capacitor.isNativePlatform()) return false;
+    if (typeof Capacitor.isPluginAvailable === 'function' && !Capacitor.isPluginAvailable('AdMob')) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn('AdMob error ignored (support check):', error);
+    return false;
+  }
+}
+
+/**
  * Inicializa o SDK do Google Mobile Ads (AdMob)
- * Executado com fallback seguro para não quebrar a versão web/preview.
+ * Totalmente blindado com try/catch e initializeForTesting: true para homologação no Android
  */
 export async function initializeAdMob(): Promise<boolean> {
   if (isInitialized) return true;
 
   try {
-    // No navegador / preview web, simula inicialização sem erros
-    if (!isCapacitorNative()) {
-      console.log('[AdMob Web Fallback]: Simulação ativa para web.');
+    // Se não for ambiente nativo Android/iOS, simula sem executar código nativo
+    if (!isAdMobSupported()) {
+      console.log('[AdMob]: Ambiente Web/Preview ou plugin nativo ausente. Modo silencioso ativado.');
       isInitialized = true;
       return true;
     }
 
-    await waitForDeviceReady();
+    // Aguarda o evento deviceready para garantir que o bridge nativo está pronto
+    try {
+      await waitForDeviceReady();
+    } catch (e) {
+      console.warn('AdMob error ignored (deviceready wait):', e);
+    }
 
-    // Inicializa o AdMob nativo para produção com os IDs reais do usuário
+    // Inicializa o AdMob com initializeForTesting: true temporariamente enquanto não aprovado na Play Store
     await AdMob.initialize({
-      initializeForTesting: false,
+      initializeForTesting: true,
     });
 
     isInitialized = true;
-    console.log('[AdMob Native]: Inicializado com sucesso.');
+    console.log('[AdMob Native]: Inicializado com sucesso em modo de teste/desenvolvimento.');
 
-    // Registra listener para recarregar o Intersticial após o usuário fechá-lo
+    // Registra listeners de forma segura
     try {
       await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, () => {
-        isInterstitialReady = false;
-        console.log('[AdMob Interstitial]: Fechado pelo usuário. Preparando próximo...');
-        preloadInterstitial().catch(() => {});
+        try {
+          isInterstitialReady = false;
+          preloadInterstitial().catch(() => {});
+        } catch (e) {
+          console.warn('AdMob error ignored (dismissed callback):', e);
+        }
       });
 
       await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, (err) => {
-        isInterstitialReady = false;
-        console.warn('[AdMob Interstitial]: Falha ao exibir:', err);
-        preloadInterstitial().catch(() => {});
+        try {
+          isInterstitialReady = false;
+          console.warn('AdMob error ignored (failed to show):', err);
+          preloadInterstitial().catch(() => {});
+        } catch (e) {
+          console.warn('AdMob error ignored (failed to show callback):', e);
+        }
       });
     } catch (listenerErr) {
-      console.warn('[AdMob]: Falha ao registrar listeners:', listenerErr);
+      console.warn('AdMob error ignored (listeners):', listenerErr);
     }
 
     // Pré-carrega o primeiro anúncio intersticial em background
-    preloadInterstitial().catch(() => {});
+    try {
+      preloadInterstitial().catch(() => {});
+    } catch (e) {
+      console.warn('AdMob error ignored (preload initial):', e);
+    }
 
-    // Exibe o Banner inferior
-    showBottomBanner().catch(err => {
-      console.warn('[AdMob Banner]: Erro ao exibir banner inicial:', err);
-    });
+    // Exibe o Banner inferior após 500ms da inicialização
+    setTimeout(() => {
+      showBottomBanner().catch(err => {
+        console.warn('AdMob error ignored (initial banner):', err);
+      });
+    }, 500);
 
     return true;
   } catch (error) {
-    console.warn('[AdMob]: Falha silenciosa na inicialização:', error);
+    console.warn('AdMob error ignored (initialization):', error);
     return false;
   }
 }
@@ -87,13 +123,12 @@ export async function initializeAdMob(): Promise<boolean> {
  * Exibe o Banner fixo inferior com margem segura acima da barra de navegação móvel (64dp)
  */
 export async function showBottomBanner(): Promise<void> {
-  if (!isCapacitorNative()) {
-    console.log('[AdMob Web]: Banner simulado.');
-    isBannerActive = true;
-    return;
-  }
-
   try {
+    if (!isAdMobSupported()) {
+      isBannerActive = true;
+      return;
+    }
+
     if (!isInitialized) {
       await initializeAdMob();
     }
@@ -103,27 +138,26 @@ export async function showBottomBanner(): Promise<void> {
       adSize: BannerAdSize.ADAPTIVE_BANNER,
       position: BannerAdPosition.BOTTOM_CENTER,
       margin: 64, // Margem para posicionar acima da BottomNavigation do app
-      isTesting: false,
+      isTesting: true, // Modo seguro durante testes de desenvolvimento
     });
 
     isBannerActive = true;
-    console.log('[AdMob Banner]: Exibido com sucesso acima da navegação.');
+    console.log('[AdMob Banner]: Exibido com sucesso.');
   } catch (error) {
-    console.warn('[AdMob Banner]: Erro ao exibir banner:', error);
+    console.warn('AdMob error ignored (showBanner):', error);
   }
 }
 
 /**
- * Oculta o Banner
+ * Oculta o Banner com segurança
  */
 export async function hideBottomBanner(): Promise<void> {
-  if (!isCapacitorNative() || !isBannerActive) return;
-
   try {
+    if (!isAdMobSupported() || !isBannerActive) return;
     await AdMob.hideBanner();
     isBannerActive = false;
   } catch (error) {
-    console.warn('[AdMob Banner]: Erro ao ocultar banner:', error);
+    console.warn('AdMob error ignored (hideBanner):', error);
   }
 }
 
@@ -131,25 +165,24 @@ export async function hideBottomBanner(): Promise<void> {
  * Pré-carrega um Anúncio Intersticial em background
  */
 export async function preloadInterstitial(): Promise<void> {
-  if (!isCapacitorNative()) return;
-  if (isPreparingInterstitial || isInterstitialReady) return;
-
   try {
+    if (!isAdMobSupported()) return;
+    if (isPreparingInterstitial || isInterstitialReady) return;
+
     isPreparingInterstitial = true;
-    console.log('[AdMob Interstitial]: Pré-carregando...');
 
     await AdMob.prepareInterstitial({
       adId: ADMOB_IDS.INTERSTITIAL_UNIT,
-      isTesting: false,
+      isTesting: true, // Modo seguro durante testes de desenvolvimento
     });
 
     isInterstitialReady = true;
     isPreparingInterstitial = false;
-    console.log('[AdMob Interstitial]: Pronto para exibição.');
+    console.log('[AdMob Interstitial]: Pré-carregado com sucesso.');
   } catch (error) {
     isPreparingInterstitial = false;
     isInterstitialReady = false;
-    console.warn('[AdMob Interstitial]: Erro no pré-carregamento:', error);
+    console.warn('AdMob error ignored (prepareInterstitial):', error);
   }
 }
 
@@ -157,14 +190,12 @@ export async function preloadInterstitial(): Promise<void> {
  * Exibe o Anúncio Intersticial se estiver carregado
  */
 export async function showInterstitial(): Promise<boolean> {
-  if (!isCapacitorNative()) {
-    console.log('[AdMob Web]: Intersticial simulado (Web).');
-    return true;
-  }
-
   try {
+    if (!isAdMobSupported()) {
+      return true;
+    }
+
     if (!isInterstitialReady) {
-      console.log('[AdMob Interstitial]: Ainda não pronto. Forçando preload...');
       await preloadInterstitial();
     }
 
@@ -174,9 +205,11 @@ export async function showInterstitial(): Promise<boolean> {
       return true;
     }
   } catch (error) {
-    console.warn('[AdMob Interstitial]: Erro ao exibir anúncio:', error);
+    console.warn('AdMob error ignored (showInterstitial):', error);
     isInterstitialReady = false;
-    preloadInterstitial().catch(() => {});
+    try {
+      preloadInterstitial().catch(() => {});
+    } catch {}
   }
 
   return false;
@@ -184,18 +217,22 @@ export async function showInterstitial(): Promise<boolean> {
 
 /**
  * Incrementa o contador de transações salvas ou importadas via notificação.
- * A cada 3 transações, dispara o anúncio intersticial automaticamente.
+ * A cada 3 transações, dispara o anúncio intersticial automaticamente de forma não bloqueante.
  */
 export async function recordTransactionActionAndMaybeShowInterstitial(): Promise<void> {
-  transactionCounter += 1;
-  console.log(`[AdMob]: Contador de transações: ${transactionCounter}/${TRANSACTIONS_PER_INTERSTITIAL}`);
+  try {
+    transactionCounter += 1;
+    console.log(`[AdMob]: Contador de transações: ${transactionCounter}/${TRANSACTIONS_PER_INTERSTITIAL}`);
 
-  if (transactionCounter >= TRANSACTIONS_PER_INTERSTITIAL) {
-    transactionCounter = 0;
-    try {
-      await showInterstitial();
-    } catch (err) {
-      console.warn('[AdMob]: Falha silenciosa ao tentar exibir intersticial de transação:', err);
+    if (transactionCounter >= TRANSACTIONS_PER_INTERSTITIAL) {
+      transactionCounter = 0;
+      setTimeout(() => {
+        showInterstitial().catch(err => {
+          console.warn('AdMob error ignored (transaction interstitial):', err);
+        });
+      }, 400);
     }
+  } catch (error) {
+    console.warn('AdMob error ignored (recordTransactionAction):', error);
   }
 }

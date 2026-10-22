@@ -803,12 +803,17 @@ export default function App() {
   // ==========================================
 
   useEffect(() => {
-    // Inicializa AdMob de forma assíncrona após montagem da tela
+    // DESACOPLADO DA RENDERIZAÇÃO INICIAL:
+    // Aguarda 2 segundos após a interface estar 100% visível na tela
     const timer = setTimeout(() => {
-      initializeAdMob().catch(err => {
-        console.warn('[AdMob]: Falha na inicialização assíncrona:', err);
-      });
-    }, 600);
+      try {
+        initializeAdMob().catch(err => {
+          console.warn('AdMob error ignored (decoupled init):', err);
+        });
+      } catch (err) {
+        console.warn('AdMob error ignored (sync init error):', err);
+      }
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
